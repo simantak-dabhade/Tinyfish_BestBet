@@ -31,6 +31,17 @@ const DEFAULT_SPORTSBOOKS: Sportsbook[] = [
 const STORAGE_KEY = "bestbet-sportsbooks";
 const SELECTION_KEY = "bestbet-selected";
 
+function getCurrentDate(): string {
+  const now = new Date();
+  const options: Intl.DateTimeFormatOptions = {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  };
+  return now.toLocaleDateString("en-US", options);
+}
+
 type OddsResult = {
   url: string;
   game_date: string;
@@ -152,7 +163,7 @@ export default function Home() {
       const y = -50;
 
       setMoneyParticles((prev) => [...prev, { id, image, x, y }]);
-    }, 300);
+    }, 600);
 
     return () => clearInterval(interval);
   }, [isLoading]);
@@ -178,30 +189,43 @@ export default function Home() {
           url: sportsbook.url,
           goal: `You are extracting current betting market data from this sports betting webpage.
 
-Match: ${match}
+CONTEXT:
+- Sport: ${sport.charAt(0).toUpperCase() + sport.slice(1)}
+- Current Date: ${getCurrentDate()}
+- Match: ${match}
 
 Focus only on "Pre-match" or "Upcoming" games. If live games are present, prioritize extracting data for games that have not yet started.
 
-STEP 1 - GAME AND BET TYPE INPUT (if required):
-If the page provides multiple sports to bet on followed by their subgenres, select Soccer followed by Champions League/UEFA Champions League. If page provides multiple betting types, select Moneyline. Click select/continue/expand/all games to proceed.
+---
 
-STEP 2 - FIND UPCOMING BETTING SLOTS
-- Look at the date time provided for upcoming games
-- Find the upcoming game for "${match}"
-- Bet values should appear on buttons or links containing "+" or "-" symbols and values (e.g., +280, -105).
+STEP 1 - LOCATE BETTING ODDS PAGE (if required):
+- If the page does not show betting odds, locate the button or text for "Odds" or "Betting Odds"
+- This may be nested within sidebars, menu icons, or navigation bars
+- Select the category that matches ${sport.charAt(0).toUpperCase() + sport.slice(1)}
 
-STEP 3 - RETURN RESULT
+STEP 2 - GAME AND BET TYPE INPUT (if required):
+- If the page lists multiple sports, select ${sport.charAt(0).toUpperCase() + sport.slice(1)}
+- Locate the match: "${match}"
+- If multiple betting types are available, select Moneyline
+- Click select/continue/expand/all games to proceed
+
+STEP 3 - FIND UPCOMING BETTING SLOTS:
+- Look at the date/time for upcoming games
+- Find games matching "${match}" on ${getCurrentDate()}
+- Bet values appear on buttons/links with "+" or "-" symbols (e.g., +280, -105)
+
+STEP 4 - RETURN RESULT:
 {
-	"url": "url of the webpage",
-	"game_date": "Today" or "MM/DD/YYYY",
-	"game_time": "HH:MM AM/PM",
-	"home_team": "Home Team Name",
-	"away_team": "Away Team Name",
-	"betting_odds": {
-		"home_wins": "+XXX",
-		"draw": "+XXX",
-		"away_wins": "+XXX"
-	}
+  "url": "url of the webpage",
+  "game_date": "Today" or "01/20/2026",
+  "game_time": "4:15 PM",
+  "home_team": "Home Team Name",
+  "away_team": "Away Team Name",
+  "betting_odds": {
+    "home_wins": "+240",
+    "draw": "+270",
+    "away_wins": "+105"
+  }
 }`,
         }),
       });

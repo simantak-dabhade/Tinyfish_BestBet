@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "BestBet",
   description: "BestBet - Your trusted betting platform",
+  icons: {
+    icon: "/BBCoin.png",
+  },
 };
 
 export default function RootLayout({

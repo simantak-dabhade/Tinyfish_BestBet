@@ -20,7 +20,7 @@ export default function MoneyParticle({
 }: MoneyParticleProps) {
   const driftX = (Math.random() - 0.5) * 80;
   const rotation = (Math.random() - 0.5) * 360;
-  const duration = 2.5 + Math.random() * 1.5;
+  const duration = 4.5 + Math.random() * 2;
   const fallDistance = typeof window !== "undefined" ? window.innerHeight + 150 : 1000;
 
   return (
