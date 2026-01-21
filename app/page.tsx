@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import { AnimatePresence } from "framer-motion";
 import MoneyParticle from "./components/MoneyParticle";
+import SportsbookSelector, { type Sportsbook } from "./components/SportsbookSelector";
 
 const placeholdersBySport: Record<string, string> = {
   soccer: "Galatasaray vs Atletico Madrid",
@@ -18,14 +19,17 @@ type MoneyParticleType = {
   y: number;
 };
 
-const SPORTSBOOKS = [
-  { name: "DraftKings", url: "https://www.draftkings.com/" },
-  { name: "FanDuel", url: "https://www.fanduel.com/" },
-  { name: "BetMGM", url: "https://www.nj.betmgm.com" },
-  { name: "Caesars", url: "https://www.caesars.com/sportsbook-and-casino" },
-  { name: "Bet365", url: "https://www.bet365.com/usa" },
-  { name: "Polymarket", url: "https://polymarket.com/sports/live" },
+const DEFAULT_SPORTSBOOKS: Sportsbook[] = [
+  { id: "draftkings", name: "DraftKings", url: "https://www.draftkings.com/" },
+  { id: "fanduel", name: "FanDuel", url: "https://www.fanduel.com/" },
+  { id: "betmgm", name: "BetMGM", url: "https://www.nj.betmgm.com" },
+  { id: "caesars", name: "Caesars", url: "https://www.caesars.com/sportsbook-and-casino" },
+  { id: "bet365", name: "Bet365", url: "https://www.bet365.com/usa" },
+  { id: "polymarket", name: "Polymarket", url: "https://polymarket.com/sports/live" },
 ];
+
+const STORAGE_KEY = "bestbet-sportsbooks";
+const SELECTION_KEY = "bestbet-selected";
 
 type OddsResult = {
   url: string;
@@ -59,6 +63,83 @@ export default function Home() {
   const [moneyParticles, setMoneyParticles] = useState<MoneyParticleType[]>([]);
   const particleIdRef = useRef(0);
 
+  // Sportsbook selection state
+  const [sportsbooks, setSportsbooks] = useState<Sportsbook[]>(DEFAULT_SPORTSBOOKS);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(
+    new Set(DEFAULT_SPORTSBOOKS.map((s) => s.id))
+  );
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const savedSportsbooks = localStorage.getItem(STORAGE_KEY);
+    const savedSelections = localStorage.getItem(SELECTION_KEY);
+
+    if (savedSportsbooks) {
+      try {
+        const parsed = JSON.parse(savedSportsbooks) as Sportsbook[];
+        // Merge with defaults to ensure new default sportsbooks are included
+        const customBooks = parsed.filter((s) => s.isCustom);
+        setSportsbooks([...DEFAULT_SPORTSBOOKS, ...customBooks]);
+      } catch {
+        // Invalid data, use defaults
+      }
+    }
+
+    if (savedSelections) {
+      try {
+        const parsed = JSON.parse(savedSelections) as string[];
+        setSelectedIds(new Set(parsed));
+      } catch {
+        // Invalid data, use defaults
+      }
+    }
+
+    setIsHydrated(true);
+  }, []);
+
+  // Save to localStorage when sportsbooks change
+  useEffect(() => {
+    if (isHydrated) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sportsbooks));
+    }
+  }, [sportsbooks, isHydrated]);
+
+  // Save to localStorage when selections change
+  useEffect(() => {
+    if (isHydrated) {
+      localStorage.setItem(SELECTION_KEY, JSON.stringify([...selectedIds]));
+    }
+  }, [selectedIds, isHydrated]);
+
+  const handleToggleSportsbook = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleAddCustomSportsbook = useCallback((name: string, url: string) => {
+    const id = `custom-${Date.now()}`;
+    const newSportsbook: Sportsbook = { id, name, url, isCustom: true };
+    setSportsbooks((prev) => [...prev, newSportsbook]);
+    setSelectedIds((prev) => new Set([...prev, id]));
+  }, []);
+
+  const handleRemoveCustomSportsbook = useCallback((id: string) => {
+    setSportsbooks((prev) => prev.filter((s) => s.id !== id));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }, []);
+
   // Spawn money randomly while loading
   useEffect(() => {
     if (!isLoading) return;
@@ -85,7 +166,7 @@ export default function Home() {
     setMatch("");
   };
 
-  const fetchSportsbook = async (sportsbook: { name: string; url: string }) => {
+  const fetchSportsbook = async (sportsbook: Sportsbook) => {
     try {
       const response = await fetch("https://mino.ai/v1/automation/run-sse", {
         method: "POST",
@@ -200,12 +281,17 @@ STEP 3 - RETURN RESULT
   };
 
   const handleFindOdds = async () => {
+    const selectedSportsbooks = sportsbooks.filter((s) => selectedIds.has(s.id));
+    if (selectedSportsbooks.length === 0) {
+      return;
+    }
+
     setIsLoading(true);
     setStreamUrls({});
     setResults({});
 
     try {
-      await Promise.all(SPORTSBOOKS.map((sportsbook) => fetchSportsbook(sportsbook)));
+      await Promise.all(selectedSportsbooks.map((sportsbook) => fetchSportsbook(sportsbook)));
     } finally {
       setIsLoading(false);
     }
@@ -216,9 +302,21 @@ STEP 3 - RETURN RESULT
 
   return (
     <div
-      className="flex min-h-screen flex-col items-center font-sans"
+      className="relative flex min-h-screen flex-col items-center font-sans"
       style={{ backgroundColor: "rgb(253, 253, 248)" }}
     >
+      {/* Settings button in top-right */}
+      <div className="absolute right-4 top-4 z-10">
+        <SportsbookSelector
+          sportsbooks={sportsbooks}
+          selectedIds={selectedIds}
+          onToggle={handleToggleSportsbook}
+          onAddCustom={handleAddCustomSportsbook}
+          onRemoveCustom={handleRemoveCustomSportsbook}
+          disabled={isLoading}
+        />
+      </div>
+
       <main className="flex w-full max-w-6xl flex-col items-center gap-8 px-6 pt-16">
         <div className="flex flex-col items-center gap-4">
           <Image
@@ -258,7 +356,7 @@ STEP 3 - RETURN RESULT
 
         <button
           onClick={handleFindOdds}
-          disabled={isLoading}
+          disabled={isLoading || selectedIds.size === 0}
           className="relative h-10 rounded border-2 border-zinc-900 bg-zinc-800 px-6 text-sm font-bold uppercase tracking-wide text-white shadow-[4px_4px_0_0_#18181b] transition-all duration-75 hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_#18181b] active:translate-x-1 active:translate-y-1 active:shadow-none disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isLoading ? "Searching..." : "Find Best Odds"}
