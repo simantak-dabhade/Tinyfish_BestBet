@@ -1,10 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
+import { AnimatePresence } from "framer-motion";
+import MoneyParticle from "./components/MoneyParticle";
 
 const placeholdersBySport: Record<string, string> = {
   soccer: "Galatasaray vs Atletico Madrid",
+};
+
+const MONEY_IMAGES = ["/BBCoin.png", "/BBNote1.png", "/BBNote2.png"];
+
+type MoneyParticleType = {
+  id: string;
+  image: string;
+  x: number;
+  y: number;
 };
 
 const SPORTSBOOKS = [
@@ -45,6 +56,29 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [streamUrls, setStreamUrls] = useState<Record<string, string>>({});
   const [results, setResults] = useState<Record<string, SportsbookResult>>({});
+  const [moneyParticles, setMoneyParticles] = useState<MoneyParticleType[]>([]);
+  const particleIdRef = useRef(0);
+
+  // Spawn money randomly while loading
+  useEffect(() => {
+    if (!isLoading) return;
+
+    const interval = setInterval(() => {
+      const id = `p-${particleIdRef.current++}`;
+      const image = MONEY_IMAGES[Math.floor(Math.random() * MONEY_IMAGES.length)];
+      const isLeft = Math.random() > 0.5;
+      const x = isLeft ? Math.random() * 100 : window.innerWidth - 100 - Math.random() * 100;
+      const y = -50;
+
+      setMoneyParticles((prev) => [...prev, { id, image, x, y }]);
+    }, 300);
+
+    return () => clearInterval(interval);
+  }, [isLoading]);
+
+  const removeParticle = (id: string) => {
+    setMoneyParticles((prev) => prev.filter((p) => p.id !== id));
+  };
 
   const handleSportChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSport(e.target.value);
@@ -299,6 +333,20 @@ STEP 3 - RETURN RESULT
           </div>
         )}
       </main>
+
+      {/* Money particle overlay */}
+      <AnimatePresence>
+        {moneyParticles.map((particle) => (
+          <MoneyParticle
+            key={particle.id}
+            id={particle.id}
+            image={particle.image}
+            x={particle.x}
+            y={particle.y}
+            onComplete={removeParticle}
+          />
+        ))}
+      </AnimatePresence>
     </div>
   );
 }
