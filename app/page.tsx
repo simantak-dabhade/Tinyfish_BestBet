@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 
 const placeholdersBySport: Record<string, string> = {
   soccer: "Galatasaray vs Atletico Madrid",
@@ -185,10 +186,14 @@ STEP 3 - RETURN RESULT
       style={{ backgroundColor: "rgb(253, 253, 248)" }}
     >
       <main className="flex w-full max-w-6xl flex-col items-center gap-8 px-6 pt-16">
-        <div className="flex flex-col items-center gap-2">
-          <h1 className="text-5xl font-bold tracking-tight text-black">
-            BestBet
-          </h1>
+        <div className="flex flex-col items-center gap-4">
+          <Image
+            src="/bestBetLogoWithText.png"
+            alt="BestBet"
+            width={250}
+            height={250}
+            priority
+          />
           <p className="text-zinc-600">
             helping you find the best odds for any match online
           </p>
